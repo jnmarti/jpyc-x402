@@ -7,31 +7,32 @@ const state = {
 const elements = {
   connectButton: document.getElementById("connect-button"),
   unlockButton: document.getElementById("unlock-button"),
-  walletAddress: document.getElementById("wallet-address"),
-  walletChain: document.getElementById("wallet-chain"),
-  walletPol: document.getElementById("wallet-pol"),
-  walletJpyc: document.getElementById("wallet-jpyc"),
-  networkEnv: document.getElementById("network-env"),
+  walletSummary: document.getElementById("wallet-summary"),
   networkName: document.getElementById("network-name"),
-  tokenAddress: document.getElementById("token-address"),
-  sellerAddress: document.getElementById("seller-address"),
-  facilitatorUrl: document.getElementById("facilitator-url"),
-  freePostBody: document.getElementById("free-post-body"),
   invoicePrice: document.getElementById("invoice-price"),
-  invoiceRecipient: document.getElementById("invoice-recipient"),
-  invoiceMethod: document.getElementById("invoice-method"),
   invoiceStatus: document.getElementById("invoice-status"),
-  statusLog: document.getElementById("status-log"),
-  premiumPost: document.getElementById("premium-post"),
+  statusMessage: document.getElementById("status-message"),
+  articleActions: document.getElementById("article-actions"),
   txLink: document.getElementById("tx-link"),
+  postSection: document.getElementById("post-section"),
+  postTitle: document.getElementById("post-title"),
+  postDek: document.getElementById("post-dek"),
+  postAuthor: document.getElementById("post-author"),
+  postRole: document.getElementById("post-role"),
+  postDate: document.getElementById("post-date"),
+  postReadTime: document.getElementById("post-read-time"),
+  postPreview: document.getElementById("post-preview"),
+  articleContinuation: document.getElementById("article-continuation"),
+  flowItems: Array.from(document.querySelectorAll("[data-flow-step]")),
 };
 
 function hasEthereum() {
   return typeof window.ethereum !== "undefined";
 }
 
-function setStatus(message) {
-  elements.statusLog.textContent = message;
+function setStatus(message, tone = "neutral") {
+  elements.statusMessage.textContent = message;
+  elements.statusMessage.dataset.tone = tone;
 }
 
 function escapeHtml(value) {
@@ -68,10 +69,6 @@ function formatError(error) {
   return String(error);
 }
 
-function normalizeHex(value) {
-  return value.startsWith("0x") ? value : `0x${value}`;
-}
-
 function formatUnits(value, decimals = 18) {
   const raw = BigInt(value).toString();
   const padded = raw.padStart(decimals + 1, "0");
@@ -81,16 +78,18 @@ function formatUnits(value, decimals = 18) {
   return fraction ? `${whole}.${fraction}` : whole;
 }
 
-function toRpcHex(value) {
-  return `0x${BigInt(value).toString(16)}`;
-}
+function shortHash(value, leading = 6, trailing = 4) {
+  if (!value) {
+    return "";
+  }
 
-function addressWord(address) {
-  return normalizeHex(address).slice(2).toLowerCase().padStart(64, "0");
-}
+  const text = String(value);
 
-function encodeBalanceOfData(address) {
-  return `0x70a08231${addressWord(address)}`;
+  if (text.length <= leading + trailing + 3) {
+    return text;
+  }
+
+  return `${text.slice(0, leading + 2)}…${text.slice(-trailing)}`;
 }
 
 function createNonce() {
@@ -99,29 +98,90 @@ function createNonce() {
   return `0x${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function setRequirementSummary(paymentRequirements, label = "Payment required") {
-  if (!paymentRequirements) {
-    elements.invoicePrice.textContent = "-";
-    elements.invoiceRecipient.textContent = "-";
-    elements.invoiceMethod.textContent = "-";
-    elements.invoiceStatus.textContent = "Awaiting payment requirements";
-    return;
-  }
+function setFlowProgress(progress) {
+  const finalIndex = elements.flowItems.length;
 
-  elements.invoicePrice.textContent = `${formatUnits(paymentRequirements.maxAmountRequired, 18)} JPYC`;
-  elements.invoiceRecipient.textContent = paymentRequirements.payTo;
-  elements.invoiceMethod.textContent = paymentRequirements.extra?.assetTransferMethod ?? "eip3009";
+  elements.flowItems.forEach((item, index) => {
+    let nextState = "idle";
+
+    if (progress >= finalIndex || index < progress) {
+      nextState = "done";
+    } else if (index === progress) {
+      nextState = "active";
+    }
+
+    item.dataset.state = nextState;
+  });
+}
+
+function setRequirementSummary(paymentRequirements, label = "Locked") {
+  const amount = paymentRequirements?.maxAmountRequired ?? state.config?.price?.amount;
+  const decimals = paymentRequirements ? 18 : (state.config?.price?.decimals ?? 18);
+  const symbol = state.config?.price?.symbol ?? "JPYC";
+
+  elements.invoicePrice.textContent = amount ? `${formatUnits(amount, decimals)} ${symbol}` : "-";
   elements.invoiceStatus.textContent = label;
 }
 
+function renderArticleMeta(article) {
+  elements.postSection.textContent = article.section ?? "AI Commerce";
+  elements.postTitle.textContent = article.title ?? "Premium article";
+  elements.postDek.textContent = article.dek ?? "";
+  elements.postAuthor.textContent = article.author ?? "Editorial desk";
+  elements.postRole.textContent = article.authorRole ?? "";
+  elements.postDate.textContent = article.publishedAt ?? "";
+  elements.postReadTime.textContent = article.readTime ?? "";
+}
+
+function setTransactionLink(txHash) {
+  if (txHash && state.config?.network?.explorerUrl) {
+    elements.txLink.href = `${state.config.network.explorerUrl}/tx/${txHash}`;
+    elements.articleActions.classList.remove("hidden");
+    elements.txLink.classList.remove("hidden");
+    return;
+  }
+
+  elements.txLink.href = "#";
+  elements.txLink.classList.add("hidden");
+  elements.articleActions.classList.add("hidden");
+}
+
+function runTransition(update) {
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (typeof document.startViewTransition === "function" && !prefersReducedMotion) {
+    document.startViewTransition(update);
+    return;
+  }
+
+  update();
+}
+
 function showPremiumPost(body) {
-  elements.premiumPost.innerHTML = `
-    <h3>${escapeHtml(body.title ?? "Premium post")}</h3>
-    <p>${escapeHtml(body.body ?? "Unlocked.")}</p>
-    <p><strong>Transaction:</strong> <code>${escapeHtml(body.verification?.txHash ?? "n/a")}</code></p>
-    <p><strong>Payer:</strong> <code>${escapeHtml(body.verification?.payer ?? "n/a")}</code></p>
-  `;
-  elements.premiumPost.classList.remove("hidden");
+  const paragraphs = (body.paragraphs ?? [])
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
+
+  runTransition(() => {
+    renderArticleMeta(body);
+    setTransactionLink(body.verification?.txHash ?? null);
+    document.body.classList.add("article-unlocked");
+    elements.articleContinuation.classList.remove("is-locked");
+    elements.articleContinuation.classList.add("is-unlocked");
+    elements.articleContinuation.innerHTML = paragraphs;
+  });
+}
+
+function resetWalletSummary() {
+  state.account = null;
+  elements.walletSummary.textContent = "MetaMask not connected";
+  elements.connectButton.textContent = "Connect MetaMask";
+  elements.connectButton.disabled = false;
+
+  if (!document.body.classList.contains("article-unlocked")) {
+    elements.invoiceStatus.textContent = "Locked";
+    setFlowProgress(0);
+  }
 }
 
 async function ethereumRequest(method, params = []) {
@@ -167,20 +227,14 @@ async function refreshWalletSummary() {
     return;
   }
 
-  const [chainIdHex, polHex, tokenHex] = await Promise.all([
-    ethereumRequest("eth_chainId"),
-    ethereumRequest("eth_getBalance", [state.account, "latest"]),
-    ethereumRequest("eth_call", [{
-      to: state.config.network.tokenAddress,
-      data: encodeBalanceOfData(state.account),
-    }, "latest"]),
-  ]);
+  const chainIdHex = await ethereumRequest("eth_chainId");
   const chainId = Number.parseInt(chainIdHex, 16);
+  const chainLabel = chainId === state.config.network.chainId
+    ? state.config.network.chainName
+    : `Chain ${chainId}`;
 
-  elements.walletAddress.textContent = state.account;
-  elements.walletChain.textContent = `${state.config.network.chainName} (${chainId})`;
-  elements.walletPol.textContent = formatUnits(polHex, 18);
-  elements.walletJpyc.textContent = formatUnits(tokenHex, state.config.price.decimals);
+  elements.walletSummary.textContent = `${shortHash(state.account)} on ${chainLabel}`;
+  elements.connectButton.textContent = "Wallet connected";
 }
 
 async function connectWallet() {
@@ -192,30 +246,24 @@ async function connectWallet() {
   state.account = accounts[0];
   await ensureMetaMaskChain();
   await refreshWalletSummary();
-  elements.connectButton.textContent = "MetaMask Connected";
+  setFlowProgress(1);
+  setRequirementSummary(state.paymentRequirements, "Ready");
+  setStatus("Wallet connected. Review the price and unlock when you're ready.");
 }
 
 async function loadConfig() {
   const { body } = await fetchJson("/");
 
   state.config = body;
-  elements.networkEnv.textContent = body.network.env;
-  elements.networkName.textContent = `${body.network.chainName} (${body.network.chainId})`;
-  elements.tokenAddress.textContent = body.network.tokenAddress;
-  elements.sellerAddress.textContent = body.sellerAddress;
-  elements.facilitatorUrl.textContent = body.facilitatorUrl;
-  setRequirementSummary({
-    maxAmountRequired: body.price.amount,
-    payTo: body.sellerAddress,
-    extra: {
-      assetTransferMethod: "eip3009",
-    },
-  }, "Ready");
+  elements.networkName.textContent = body.network.chainName;
+  elements.unlockButton.textContent = `Unlock for ${formatUnits(body.price.amount, body.price.decimals)} ${body.price.symbol}`;
+  setRequirementSummary(null, "Locked");
 }
 
 async function loadFreePost() {
   const { body } = await fetchJson("/posts/free");
-  elements.freePostBody.textContent = body.body;
+  renderArticleMeta(body);
+  elements.postPreview.textContent = body.preview ?? body.body ?? "";
 }
 
 async function requestPremiumRoute() {
@@ -231,7 +279,7 @@ async function requestPremiumRoute() {
 
   const paymentRequirements = body.accepts[0];
   state.paymentRequirements = paymentRequirements;
-  setRequirementSummary(paymentRequirements, "Payment required");
+  setRequirementSummary(paymentRequirements, "Awaiting signature");
 
   return { response, body, paymentRequirements };
 }
@@ -316,45 +364,49 @@ async function postFacilitator(path, payload) {
 }
 
 async function unlockPremiumPost() {
-  elements.premiumPost.classList.add("hidden");
-  elements.txLink.classList.add("hidden");
+  setTransactionLink(null);
 
   if (!state.account) {
+    setStatus("Connecting to MetaMask...");
     await connectWallet();
+  } else {
+    await ensureMetaMaskChain();
+    await refreshWalletSummary();
   }
 
-  setStatus("Requesting premium route payment requirements...");
+  setStatus("Requesting payment requirements for this article.");
   const { response, body, paymentRequirements } = await requestPremiumRoute();
 
   if (response.status === 200) {
-    setStatus("The premium route is already accessible.");
     showPremiumPost(body);
+    setFlowProgress(elements.flowItems.length);
+    setRequirementSummary(state.paymentRequirements, "Unlocked");
+    setStatus("The article is already unlocked.", "success");
     return;
   }
 
-  setStatus("Payment requirements loaded. Asking MetaMask to sign transferWithAuthorization...");
+  setFlowProgress(1);
+  setStatus("Asking MetaMask to sign the JPYC authorization.");
   const signedPayment = await signPayment(paymentRequirements);
 
-  setStatus("Signature created. Sending it to the facilitator for verification...");
+  setFlowProgress(2);
+  setStatus("The facilitator is verifying the signature and preparing settlement.");
   const verification = await postFacilitator("/verify", signedPayment);
 
   if (!verification.isValid) {
     throw new Error(verification.invalidReason ?? "Facilitator rejected the payment.");
   }
 
-  elements.invoiceStatus.textContent = "Verified";
-  setStatus("Facilitator accepted the signature. Settling onchain...");
+  setRequirementSummary(paymentRequirements, "Authorized");
+  setStatus("Authorization verified. Settling payment onchain.");
   const settlement = await postFacilitator("/settle", signedPayment);
 
   if (!settlement.success) {
     throw new Error(settlement.error ?? "Facilitator settlement failed.");
   }
 
-  elements.invoiceStatus.textContent = "Settled";
-  elements.txLink.href = `${state.config.network.explorerUrl}/tx/${settlement.txHash}`;
-  elements.txLink.classList.remove("hidden");
-
-  setStatus(`Settlement complete.\nTx hash: ${settlement.txHash}\nRetrying premium route with the settled transaction...`);
+  setRequirementSummary(paymentRequirements, "Settled");
+  setStatus("Settlement confirmed. Rechecking the protected route.");
   const premiumUrl = `/posts/premium?txHash=${encodeURIComponent(settlement.txHash)}&payer=${encodeURIComponent(state.account)}`;
   const { response: premiumResponse, body: premiumBody } = await fetchJson(premiumUrl);
 
@@ -362,32 +414,103 @@ async function unlockPremiumPost() {
     throw new Error(premiumBody?.message ?? premiumBody?.error ?? `Unexpected status: ${premiumResponse.status}`);
   }
 
-  elements.invoiceStatus.textContent = "Unlocked";
-  setStatus("Payment settled and premium content unlocked.");
+  setFlowProgress(elements.flowItems.length);
+  setRequirementSummary(paymentRequirements, "Unlocked");
+  setStatus("Article unlocked. The protected route accepted the settlement proof.", "success");
   showPremiumPost(premiumBody);
   await refreshWalletSummary();
 }
 
+function bindEthereumEvents() {
+  if (!hasEthereum() || typeof window.ethereum.on !== "function") {
+    return;
+  }
+
+  window.ethereum.on("accountsChanged", async (accounts) => {
+    if (!accounts[0]) {
+      resetWalletSummary();
+
+      if (!document.body.classList.contains("article-unlocked")) {
+        setStatus("MetaMask disconnected. Reconnect to unlock the article.", "error");
+      }
+
+      return;
+    }
+
+    state.account = accounts[0];
+
+    try {
+      await refreshWalletSummary();
+
+      if (!document.body.classList.contains("article-unlocked")) {
+        setFlowProgress(1);
+        setRequirementSummary(state.paymentRequirements, "Ready");
+        setStatus("Wallet updated. You can continue the unlock flow.");
+      }
+    } catch (error) {
+      setStatus(`Wallet update failed. ${formatError(error)}`, "error");
+    }
+  });
+
+  window.ethereum.on("chainChanged", async () => {
+    if (!state.account) {
+      return;
+    }
+
+    try {
+      await refreshWalletSummary();
+    } catch (error) {
+      setStatus(`Network update failed. ${formatError(error)}`, "error");
+    }
+  });
+}
+
+function syncScrollProgress() {
+  const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = scrollable > 0 ? window.scrollY / scrollable : 0;
+  document.documentElement.style.setProperty("--scroll-progress", String(progress));
+}
+
+async function restoreExistingWallet() {
+  const accounts = await ethereumRequest("eth_accounts");
+
+  if (!accounts[0]) {
+    return;
+  }
+
+  state.account = accounts[0];
+  await refreshWalletSummary();
+  setFlowProgress(1);
+  setRequirementSummary(state.paymentRequirements, "Ready");
+  setStatus("Connected wallet detected. Unlock when you're ready.");
+}
+
 async function bootstrap() {
+  setFlowProgress(0);
+  syncScrollProgress();
+  window.addEventListener("scroll", syncScrollProgress, { passive: true });
+
   await Promise.all([
     loadConfig(),
     loadFreePost(),
   ]);
-  setStatus("Ready. Connect MetaMask and unlock the premium route.");
+  setStatus("Connect MetaMask to begin the unlock flow.");
 
   if (!hasEthereum()) {
     elements.connectButton.disabled = true;
     elements.unlockButton.disabled = true;
-    setStatus("MetaMask was not detected in this browser.");
+    setStatus("MetaMask was not detected in this browser.", "error");
     return;
   }
+
+  bindEthereumEvents();
+  await restoreExistingWallet();
 
   elements.connectButton.addEventListener("click", async () => {
     try {
       await connectWallet();
-      setStatus("MetaMask connected.");
     } catch (error) {
-      setStatus(`Wallet connection failed.\n${formatError(error)}`);
+      setStatus(`Wallet connection failed. ${formatError(error)}`, "error");
     }
   });
 
@@ -397,8 +520,8 @@ async function bootstrap() {
     try {
       await unlockPremiumPost();
     } catch (error) {
-      elements.invoiceStatus.textContent = "Failed";
-      setStatus(`Unlock failed.\n${formatError(error)}`);
+      setRequirementSummary(state.paymentRequirements, "Retry needed");
+      setStatus(`Unlock failed. ${formatError(error)}`, "error");
     } finally {
       elements.unlockButton.disabled = false;
     }
@@ -406,5 +529,5 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  setStatus(`Initialization failed.\n${formatError(error)}`);
+  setStatus(`Initialization failed. ${formatError(error)}`, "error");
 });

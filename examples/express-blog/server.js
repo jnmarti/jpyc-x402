@@ -18,13 +18,55 @@ const amount = process.env.JPYC_PRICE_ASSET_UNITS
   ?? encodeTokenAmount(process.env.JPYC_PRICE_TOKEN_AMOUNT ?? "10", config.decimals);
 const verifier = createViemTransferVerifier({ config });
 
+const premiumArticle = Object.freeze({
+  publication: "Ledger Dispatch",
+  section: "AI Commerce",
+  title: "AI Payments Are Becoming Agent Infrastructure",
+  dek: "Stablecoins, facilitators, and proof-based access are turning payments into a native software primitive.",
+  author: "Mika Sato",
+  authorRole: "Fintech Correspondent",
+  publishedAt: "April 9, 2026",
+  readTime: "4 min read",
+  preview:
+    "AI payments are shifting from checkout pages to agent-native infrastructure. "
+    + "The biggest change is that payment logic now travels with the workload: an assistant can discover "
+    + "a price, fetch machine-readable terms, sign an authorization, and settle a transaction without forcing "
+    + "the user through a billing screen. That matters because more software is acting autonomously, "
+    + "buying APIs, content, and compute in real time.",
+  paragraphs: [
+    "Stablecoins are becoming the preferred rail for this pattern because they settle quickly, move across "
+      + "markets, and can be programmed with clearer limits than stored card credentials. At the same time, "
+      + "facilitators and relayers are emerging as middleware. They verify authorizations, absorb chain "
+      + "complexity, enforce policy, and return proofs that an application can use to unlock a resource. The "
+      + "user experience feels more like opening a premium article than completing a checkout.",
+    "The next trend is finer-grained monetization. Instead of monthly subscriptions or bulky invoices, developers "
+      + "can charge per document, per model call, or per high-value action. That creates room for AI systems to "
+      + "budget dynamically, pay only when value is created, and leave an auditable trail behind every decision. "
+      + "The teams that win will make these flows invisible, compliant, and fast enough to feel native to "
+      + "software.",
+  ],
+});
+
+function getArticleMeta() {
+  return {
+    publication: premiumArticle.publication,
+    section: premiumArticle.section,
+    title: premiumArticle.title,
+    dek: premiumArticle.dek,
+    author: premiumArticle.author,
+    authorRole: premiumArticle.authorRole,
+    publishedAt: premiumArticle.publishedAt,
+    readTime: premiumArticle.readTime,
+  };
+}
+
 function createPremiumRequirements() {
   return createJpycExactPaymentRequirements({
     config,
     amount,
     payTo: sellerAddress,
     resource: "/posts/premium",
-    description: "Premium post access settled by the JPYC facilitator.",
+    description: "Premium article access settled by the JPYC facilitator.",
   });
 }
 
@@ -80,8 +122,9 @@ app.get("/", (_req, res) => {
 
 app.get("/posts/free", (_req, res) => {
   res.json({
-    title: "Free post",
-    body: "This route is open. The facilitator demo uses the premium route below for the payment flow.",
+    ...getArticleMeta(),
+    body: premiumArticle.preview,
+    preview: premiumArticle.preview,
   });
 });
 
@@ -100,7 +143,7 @@ app.get("/posts/premium", async (req, res) => {
     res.setHeader("cache-control", "no-store");
     res.status(402).json({
       error: "payment_required",
-      message: "Sign and settle the JPYC facilitator payment to unlock this post.",
+      message: "Sign and settle the JPYC facilitator payment to unlock this article.",
       facilitatorUrl: "/facilitator",
       accepts: [paymentRequirements],
     });
@@ -130,8 +173,9 @@ app.get("/posts/premium", async (req, res) => {
   }
 
   res.json({
-    title: "Premium post",
-    body: "This premium content was unlocked through a facilitator-settled JPYC EIP-3009 authorization.",
+    ...getArticleMeta(),
+    body: premiumArticle.paragraphs.join(" "),
+    paragraphs: premiumArticle.paragraphs,
     verification,
   });
 });
