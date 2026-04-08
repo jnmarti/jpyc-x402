@@ -1,0 +1,24 @@
+{
+  "name": "jpyc-x402-facilitator",
+  "version": "0.2.0",
+  "description": "Server-side JPYC facilitator, settlement, and verification helpers for x402-style payments.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "keywords": [
+    "jpyc",
+    "x402",
+    "facilitator",
+    "express"
+  ],
+  "dependencies": {
+    "express": "^5.2.1",
+    "jpyc-x402-shared": "0.2.0",
+    "viem": "^2.47.10"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "jpyc-x402-mcp",
+  "version": "0.2.0",
+  "description": "MCP server that lets agents sign and settle JPYC facilitator payments.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "bin": {
+    "jpyc-x402-mcp": "./src/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "keywords": [
+    "jpyc",
+    "x402",
+    "mcp",
+    "agent"
+  ],
+  "dependencies": {
+    "dotenv": "^17.4.0",
+    "jpyc-x402-client": "0.2.0",
+    "jpyc-x402-shared": "0.2.0"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "jpyc-x402-shared",
+  "version": "0.2.0",
+  "description": "Shared protocol, configuration, and EIP-3009 helpers for JPYC x402 integrations.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "keywords": [
+    "jpyc",
+    "x402",
+    "payments",
+    "polygon"
+  ],
+  "dependencies": {
+    "viem": "^2.47.10"
+  }
+}

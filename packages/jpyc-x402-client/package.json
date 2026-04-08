@@ -1,0 +1,23 @@
+{
+  "name": "jpyc-x402-client",
+  "version": "0.2.0",
+  "description": "Buyer-side JPYC EIP-3009 signing and facilitator client helpers for x402 flows.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "keywords": [
+    "jpyc",
+    "x402",
+    "client",
+    "agent"
+  ],
+  "dependencies": {
+    "jpyc-x402-shared": "0.2.0",
+    "viem": "^2.47.10"
+  }
+}

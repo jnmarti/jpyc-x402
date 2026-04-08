@@ -1,0 +1,29 @@
+{
+  "name": "jpyc-x402",
+  "version": "0.2.0",
+  "private": true,
+  "description": "JPYC facilitator and settlement libraries for x402-style protected resources.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "test:e2e:testnet": "node scripts/test-e2e-testnet.js",
+    "smoke:server": "node --test tests/integration/facilitator.test.js",
+    "smoke:mcp": "node scripts/smoke-mcp.js",
+    "smoke:mainnet:readonly": "node scripts/smoke-mainnet-readonly.js",
+    "balances": "node scripts/check-balances.js",
+    "wallet:generate": "node scripts/generate-wallet.js",
+    "example:facilitator": "node examples/express-blog/server.js",
+    "example:agent": "node examples/agent-buyer/cli.js",
+    "example:mcp": "node packages/jpyc-x402-mcp/src/cli.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "viem": "^2.47.10"
+  }
+}
